@@ -1,0 +1,170 @@
+[ARKADE INIT 1] Client initialization starts.
+[ARKADE INIT 2] drmgr_init is done.
+[ARKADE INIT 3] drutil_init is done.
+[ARKADE INIT 4] drreg_init is done.
+[ARKADE INIT 5] drwrap_init is done.
+[ARKADE INIT 6] drsym_init is done.
+[ARKADE INIT 7] module_load_event registration is done
+[ARKADE INIT 8] BB(Basic Block) insertion is done
+
+Data file /home/arkade/tools/Binary_Instrumentation_Tools/DynamoRIO/src/github/dynamorio_research/debug/arkade_examples/../samples/build/bin/arkade_memtrace_base_offset.log.hello2.3969875.0000.log created
+
+[ARKADE WRAP MALLOC] Wrapped malloc successfully @ 0x00007fcd60f064a0
+[ARKADE WRAP FREE] Wrapped free successfully @ 0x00007fcd60f06600
+
+
+
+
+[ARKADE BB START] Basic Block is detected -> event_bb_insert is called.
+
+[DEBUG] Successfully retrieved register context.
+
+Raw instruction sequences: 	Instruction: mov    %rsp -> %rdi
+	Instruction: mov    %rsp -> %rdi
+		Memory access doesn't occur.
+
+Raw instruction sequences: 	Instruction: call   $0x00007fcd60eeadf0 %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+	Instruction: call   $0x00007fcd60eeadf0 %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+		Operand: %rsp is not a memory reference
+
+	Instruction: call   $0x00007fcd60eeadf0 %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+		Operand: 0xfffffff8(%rsp) is a write memory reference
+[DEBUG] opnd_compute_address: Computed memory address: 0x00007ffc9ad25268
+		Actual VA: 0x00007ffc9ad25268 is beyond the allocated region
+
+			base_reg is DR_REG_RSP
+			base_reg: rsp, base_addr = 0x00007ffc9ad25270, offset = 0xfffffff8
+		Entered mem_access_callback
+		Actual VA: 0x00007ffc9ad25268 is beyond the allocated region
+
+[ARKADE BB END] handling event_bb is done.
+
+
+
+
+[ARKADE BB START] Basic Block is detected -> event_bb_insert is called.
+
+[DEBUG] Successfully retrieved register context.
+
+Raw instruction sequences: 	Instruction: nop    %edx
+	Instruction: nop    %edx
+		Memory access doesn't occur.
+
+Raw instruction sequences: 	Instruction: push   %rbp %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+	Instruction: push   %rbp %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+		Operand: %rsp is not a memory reference
+
+	Instruction: push   %rbp %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+		Operand: 0xfffffff8(%rsp) is a write memory reference
+[DEBUG] opnd_compute_address: Computed memory address: 0x00007ffc9ad25260
+		Actual VA: 0x00007ffc9ad25260 is beyond the allocated region
+
+			base_reg is DR_REG_RSP
+			base_reg: rsp, base_addr = 0x00007ffc9ad25268, offset = 0xfffffff8
+		Entered mem_access_callback
+		Actual VA: 0x00007ffc9ad25260 is beyond the allocated region
+
+Raw instruction sequences: 	Instruction: mov    %rsp -> %rbp
+	Instruction: mov    %rsp -> %rbp
+		Memory access doesn't occur.
+
+Raw instruction sequences: 	Instruction: push   %r15 %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+	Instruction: push   %r15 %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+		Operand: %rsp is not a memory reference
+
+	Instruction: push   %r15 %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+		Operand: 0xfffffff8(%rsp) is a write memory reference
+[DEBUG] opnd_compute_address: Computed memory address: 0x00007ffc9ad25260
+		Actual VA: 0x00007ffc9ad25260 is beyond the allocated region
+
+			base_reg is DR_REG_RSP
+			base_reg: rsp, base_addr = 0x00007ffc9ad25268, offset = 0xfffffff8
+		Entered mem_access_callback
+		Actual VA: 0x00007ffc9ad25260 is beyond the allocated region
+
+Raw instruction sequences: 	Instruction: mov    %rdi -> %r15
+	Instruction: mov    %rdi -> %r15
+		Memory access doesn't occur.
+
+Raw instruction sequences: 	Instruction: push   %r14 %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+	Instruction: push   %r14 %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+		Operand: %rsp is not a memory reference
+
+	Instruction: push   %r14 %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+		Operand: 0xfffffff8(%rsp) is a write memory reference
+[DEBUG] opnd_compute_address: Computed memory address: 0x00007ffc9ad25260
+		Actual VA: 0x00007ffc9ad25260 is beyond the allocated region
+
+			base_reg is DR_REG_RSP
+			base_reg: rsp, base_addr = 0x00007ffc9ad25268, offset = 0xfffffff8
+		Entered mem_access_callback
+		Actual VA: 0x00007ffc9ad25260 is beyond the allocated region
+
+Raw instruction sequences: 	Instruction: push   %r13 %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+	Instruction: push   %r13 %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+		Operand: %rsp is not a memory reference
+
+	Instruction: push   %r13 %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+		Operand: 0xfffffff8(%rsp) is a write memory reference
+[DEBUG] opnd_compute_address: Computed memory address: 0x00007ffc9ad25260
+		Actual VA: 0x00007ffc9ad25260 is beyond the allocated region
+
+			base_reg is DR_REG_RSP
+			base_reg: rsp, base_addr = 0x00007ffc9ad25268, offset = 0xfffffff8
+		Entered mem_access_callback
+		Actual VA: 0x00007ffc9ad25260 is beyond the allocated region
+
+Raw instruction sequences: 	Instruction: push   %r12 %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+	Instruction: push   %r12 %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+		Operand: %rsp is not a memory reference
+
+	Instruction: push   %r12 %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+		Operand: 0xfffffff8(%rsp) is a write memory reference
+[DEBUG] opnd_compute_address: Computed memory address: 0x00007ffc9ad25260
+		Actual VA: 0x00007ffc9ad25260 is beyond the allocated region
+
+			base_reg is DR_REG_RSP
+			base_reg: rsp, base_addr = 0x00007ffc9ad25268, offset = 0xfffffff8
+		Entered mem_access_callback
+		Actual VA: 0x00007ffc9ad25260 is beyond the allocated region
+
+Raw instruction sequences: 	Instruction: push   %rbx %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+	Instruction: push   %rbx %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+		Operand: %rsp is not a memory reference
+
+	Instruction: push   %rbx %rsp -> %rsp 0xfffffff8(%rsp)[8byte]
+		Operand: 0xfffffff8(%rsp) is a write memory reference
+[DEBUG] opnd_compute_address: Computed memory address: 0x00007ffc9ad25260
+		Actual VA: 0x00007ffc9ad25260 is beyond the allocated region
+
+			base_reg is DR_REG_RSP
+			base_reg: rsp, base_addr = 0x00007ffc9ad25268, offset = 0xfffffff8
+		Entered mem_access_callback
+		Actual VA: 0x00007ffc9ad25260 is beyond the allocated region
+
+Raw instruction sequences: 	Instruction: sub    $0x0000000000000038 %rsp -> %rsp
+	Instruction: sub    $0x0000000000000038 %rsp -> %rsp
+		Memory access doesn't occur.
+
+Raw instruction sequences: 	Instruction: rdtsc   -> %edx %eax
+	Instruction: rdtsc   -> %edx %eax
+		Memory access doesn't occur.
+
+Raw instruction sequences: 	Instruction: shl    $0x0000000000000020 %rdx -> %rdx
+	Instruction: shl    $0x0000000000000020 %rdx -> %rdx
+		Memory access doesn't occur.
+
+Raw instruction sequences: 	Instruction: or     %rdx %rax -> %rax
+	Instruction: or     %rdx %rax -> %rax
+		Memory access doesn't occur.
+
+Raw instruction sequences: 	Instruction: lea    <rel> 0x00007fcd60f16e68 -> %rdx
+	Instruction: lea    <rel> 0x00007fcd60f16e68 -> %rdx
+		Memory access doesn't occur.
+
+Raw instruction sequences: 	Instruction: mov    %rax -> <rel> 0x00007fcd60f165e0[8byte]
+	Instruction: mov    %rax -> <rel> 0x00007fcd60f165e0[8byte]
+		Operand: <rel> 0x00007fcd60f165e0 is a write memory reference
+[DEBUG] opnd_compute_address: Computed memory address: 0x00007fcd60f165e0
+		Actual VA: 0x00007fcd60f165e0 is beyond the allocated region
+

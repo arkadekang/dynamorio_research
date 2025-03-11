@@ -1,0 +1,3 @@
+#!/bin/bash
+
+drrun -c ../samples/build/bin/libarkade_memtrace.so -- hello2 > drrun_Result.log

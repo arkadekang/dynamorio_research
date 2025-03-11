@@ -1,0 +1,53 @@
+#!/bin/bash
+
+#ulimit -s 2097152
+#ulimit -s 1048576
+ulimit -s 122880
+echo "Initial stack size"
+ulimit -s
+
+echo "Determine time unit [i, ms, B]"
+read TIME_UNIT
+
+echo "Determine the tool [mf, mk]"
+read MEM_TOOL
+
+
+if [ $MEM_TOOL == "mf" ]; then
+    export MEM_TOOL="massif"
+elif [ $MEM_TOOL == "mk" ]; then
+    export MEM_TOOL="memcheck"
+else
+    echo "Invalid tool selection. Please choose 'mf' or 'mk'."
+    exit 1
+fi
+
+if [ $MEM_TOOL == "memcheck" ]; then
+    LEAK_CHECK_OPTION="--leak-check=full"
+else
+    LEAK_CHECK_OPTION=""
+fi
+
+#source build_cpu
+#wait
+#valgrind --extra-debuginfo-path=/usr/lib/debug/.build-id/81 \
+#         --tool=$MEM_TOOL                                   \
+#         $LEAK_CHECK_OPTION                                 \
+#         --trace-children=yes                               \
+#         --trace-children-skip=/bin/pwd                     \
+#         --main-stacksize=96739684                           \
+#         ./run_cpu
+
+valgrind --extra-debuginfo-path=/usr/lib/debug/.build-id/81 \
+         --tool=$MEM_TOOL                                   \
+         $LEAK_CHECK_OPTION                                 \
+         --trace-children=yes                               \
+         --trace-children-skip=/bin/pwd                     \
+         --detailed-freq=1                                  \
+         --main-stacksize=134217728                          \
+         --time-unit=$TIME_UNIT                             \
+         ./hello2
+         #--trace-children-skip=*sysinfo*,*specmake*,*specrxp*,*specpp*,*specxz*,*specsha512sum*          \
+         #--trace-children-skip='rawformat,bin/pwd,/usr/bin/lesspipe,/usr/bin/gcc,*specmake*,*specrxp*,*specpp*,*specxz*,*specsha512sum*'          \
+#         #-v                                                 \
+#         #--threshold=0.1                                    \
