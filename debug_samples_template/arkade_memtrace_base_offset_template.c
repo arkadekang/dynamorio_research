@@ -152,10 +152,7 @@ static void wrap_malloc_post(void *wrapcxt, void *user_data) {
     per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_idx);
     size_t size = data->size; // Obtain the size saved in wrap_malloc_pre
 
-    //dr_fprintf(STDOUT, "1818 size = %zu\n", size);
-
     bool is_user = is_user_malloc(dr_get_current_drcontext(), wrapcxt);
-
 
     if (region_count < MAX_REGIONS) {
         regions[region_count].base_address = ptr;
@@ -271,16 +268,12 @@ static bool is_in_active_region(void *addr, memory_region_t **region_out, int pr
             }
             return true;
         }
-        //dr_fprintf(STDOUT, "\t\t\tUnder searching.... Actual VA: %p, Malloc Return Address: %p, Malloc Size: 0x%lx, Active: %d\n",
-        //                                                addr, regions[i].base_address, regions[i].size, regions[i].is_active);
     }
     dr_fprintf(STDOUT, "\t\tActual VA: %p is beyond the allocated region\n\n", addr);
 
     return false;
 }
 
-//static void mem_access_callback(void *drcontext, instrlist_t *bb, instr_t *instr, reg_t base_value, int offset, int is_write) {
-//static void mem_access_callback(void *drcontext, instr_t *instr, opnd_t *opnd_ptr, int is_write) {
 static void mem_access_callback(void *drcontext, app_pc instr_addr, app_pc abs_addr, app_pc rel_addr, int base_reg, int index_reg, int64_t scale, int64_t offset, int is_write) {
 
     int thread_id = dr_get_thread_id(drcontext);
@@ -332,25 +325,18 @@ static void mem_access_callback(void *drcontext, app_pc instr_addr, app_pc abs_a
     }
 
     dr_fprintf(STDOUT, "\t\tCalculated memory address at runtime: %p\n", mem_addr);
-    //dr_fprintf(STDOUT, "base_reg_val 1: %p\n", (void *)base_reg_val);
 
     if (!is_in_active_region(mem_addr, NULL, 0)) {
         //dr_fprintf(STDOUT, "[DEBUG] Address %p is outside active malloc regions.\n", mem_addr);
         return;
     }
 
-    //dr_fprintf(STDOUT, "base_reg_val 2: %p\n", (void *)base_reg_val);
-    //dr_fprintf(STDOUT, "[DEBUG] Final Address: %p\n",mem_addr);
-
-
 
     memory_region_t *region;
     //app_pc addr = (app_pc)(base_reg_val + offset);
     app_pc addr = mem_addr;
-    //dr_fprintf(STDOUT, "base_reg_val 3: %p\n", (void *)base_reg_val);
 
     if (addr != NULL && is_in_active_region(addr, &region, 1)) {
-        //dr_fprintf(STDOUT, "base_reg_val 4: %p\n", (void *)base_reg_val);
         dr_fprintf(STDOUT, "\t\t\t[RESULT] -> ");
 
         if ( base_reg_val == (reg_t)(region->base_address) ) {/*{{{*/
@@ -443,40 +429,11 @@ static void print_disassembled_opnd(void *drcontext, opnd_t opnd) {
     dr_fprintf(STDOUT, "\t\tOperand: ");
     opnd_disassemble_to_buffer(drcontext, opnd, opnd_buf, sizeof(opnd_buf));
     dr_fprintf(STDOUT, "%s ", opnd_buf);
-
-    //reg_id_t base_reg = opnd_get_base(opnd);
-    //reg_id_t index_reg = opnd_get_index(opnd);
-
-    //if (base_reg != DR_REG_NULL) {
-    //    reg_t base_value = dr_read_saved_reg(drcontext, base_reg);
-    //    dr_fprintf(STDOUT, "[DEBUG] base_reg: %s, base_value: 0x%lx\n", get_register_name(base_reg), (unsigned long)base_value);
-    //}
-    //
-    //if (index_reg != DR_REG_NULL) {
-    //    reg_t index_value = dr_read_saved_reg(drcontext, index_reg);
-    //    dr_fprintf(STDOUT, "[DEBUG] index_reg: %s, index_value: 0x%lx\n", get_register_name(index_reg), (unsigned long)index_value);
-    //}
 }
 
 static dr_emit_flags_t event_bb_insert(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, bool translating, void **user_data) {
     dr_fprintf(STDOUT, "\n\n\n\n");
     dr_fprintf(STDOUT, "[ARKADE BB START] Basic Block is detected -> event_bb_insert is called.\n\n");
-
-    //dr_mcontext_t mc = { sizeof(mc) };
-    //mc.flags = DR_MC_ALL;
-    //dr_get_mcontext(drcontext, &mc);
-
-    //dr_mcontext_t mc;
-    //memset(&mc, 0, sizeof(mc));
-    //mc.size = sizeof(mc);
-    //mc.flags = DR_MC_ALL;
-
-    //if (!dr_get_mcontext(drcontext, &mc)) {
-    //    dr_fprintf(STDOUT, "[ERROR] Failed to get register context!\n");
-    //    return DR_EMIT_DEFAULT;
-    //}
-    //dr_fprintf(STDOUT, "[DEBUG] Successfully retrieved register context.\n\n");  // Later move this to separate function call
-
 
     for (instr_t *instr = instrlist_first(bb); instr != NULL; instr = instr_get_next(instr)) {
 
@@ -514,28 +471,6 @@ static dr_emit_flags_t event_bb_insert(void *drcontext, void *tag, instrlist_t *
                 print_disassembled_opnd(drcontext, opnd);
                 dr_fprintf(STDOUT, "is a read memory reference\n\n");
 
-                //dr_mcontext_t mc = { sizeof(mc) };
-                //mc.flags = DR_MC_ALL;
-                //dr_get_mcontext(drcontext, &mc);
-
-                //dr_mcontext_t mc;
-                //memset(&mc, 0, sizeof(mc));
-                //mc.size = sizeof(mc);
-                //mc.flags = DR_MC_ALL;
-
-                //if (!dr_get_mcontext(drcontext, &mc)) {
-                //    dr_fprintf(STDOUT, "[ERROR] Failed to get register context!\n");
-                //    return DR_EMIT_DEFAULT;
-                //}
-                //dr_fprintf(STDOUT, "[DEBUG] Successfully retrieved register context.\n\n");  // Later move this to separate function call
-
-                //app_pc mem_addr = opnd_compute_address(opnd, &mc);
-                //dr_fprintf(STDOUT, "[DEBUG] opnd_compute_address: Computed memory address: %p\n", mem_addr);
-
-                //if (!is_in_active_region(mem_addr, NULL)) {
-                //    continue;  // Ignore the case that actual address is beyond malloc region
-                //}
-
                 if (opnd_is_base_disp(opnd)) {
                     base_reg = opnd_get_base(opnd);
                     index_reg = opnd_get_index(opnd);
@@ -556,27 +491,12 @@ static dr_emit_flags_t event_bb_insert(void *drcontext, void *tag, instrlist_t *
                     dr_fprintf(STDOUT, "[WARNING] Unsupported operand type. Skipping.\n");
                     continue;
                 }
-                //reg_t base_reg_value = 0;
-
-
-                //base_reg_value = get_register_value(&mc, base_reg);
-
-                //dr_fprintf(STDOUT, "\t\t\tbase_reg: %s, base_addr = %p, offset = 0x%lx\n", get_register_name(base_reg),
-                //                                                                           (void *)base_reg_value,
-                //                                                                           offset);
-
-                //mem_access_callback(drcontext, bb, instr, base_reg_value, offset, 0);
 
                 app_pc instr_addr = instr_get_app_pc(instr);
 
                 dr_fprintf(STDOUT, "\t[RD] mem_access_callback is registered to dr_insert_clean_call\n\n");
                 dr_insert_clean_call(drcontext, bb, instr, (void *)mem_access_callback, false, 9,
                                                                                                OPND_CREATE_INTPTR(drcontext),
-                                                                                               //OPND_CREATE_INTPTR(bb),
-                                                                                               //OPND_CREATE_INTPTR(instr),
-                                                                                               //OPND_CREATE_INTPTR(base_reg_value),
-                                                                                               //OPND_CREATE_INTPTR(&opnd),
-                                                                                               //OPND_CREATE_INT32(opnd_get_disp(opnd)),
                                                                                                OPND_CREATE_INTPTR(instr_addr),
                                                                                                OPND_CREATE_INTPTR(abs_addr),
                                                                                                OPND_CREATE_INTPTR(rel_addr),
@@ -585,14 +505,6 @@ static dr_emit_flags_t event_bb_insert(void *drcontext, void *tag, instrlist_t *
                                                                                                OPND_CREATE_INT64(scale),
                                                                                                OPND_CREATE_INT64(offset),
                                                                                                OPND_CREATE_INT32(0));  // read (is_write = 0)
-                //dr_insert_clean_call(drcontext, bb, instr, (void *)mem_access_callback, false, 6, OPND_CREATE_INTPTR(drcontext),
-                //                                                                                  OPND_CREATE_INTPTR(bb),
-                //                                                                                  OPND_CREATE_INTPTR(instr),
-                //                                                                                  OPND_CREATE_INTPTR(base_reg_value),
-                //                                                                                  //OPND_CREATE_INT32(opnd_get_disp(opnd)),
-                //                                                                                  OPND_CREATE_INT32(offset),
-                //                                                                                  OPND_CREATE_INT32(0));  // read (is_write = 0)
-                //dr_fprintf(STDOUT, "\t[RD] dr_insert_clean_call is done\n");
             }
         }
         // Instruction is memory write
@@ -610,28 +522,6 @@ static dr_emit_flags_t event_bb_insert(void *drcontext, void *tag, instrlist_t *
                 print_disassembled_instr(drcontext, instr);
                 print_disassembled_opnd(drcontext, opnd);
                 dr_fprintf(STDOUT, "is a write memory reference\n\n");
-
-                //dr_mcontext_t mc = { sizeof(mc) };
-                //mc.flags = DR_MC_ALL;
-                //dr_get_mcontext(drcontext, &mc);
-
-                //dr_mcontext_t mc;
-                //memset(&mc, 0, sizeof(mc));
-                //mc.size = sizeof(mc);
-                //mc.flags = DR_MC_ALL;
-
-                //if (!dr_get_mcontext(drcontext, &mc)) {
-                //    dr_fprintf(STDOUT, "[ERROR] Failed to get register context!\n");
-                //    return DR_EMIT_DEFAULT;
-                //}
-                //dr_fprintf(STDOUT, "[DEBUG] Successfully retrieved register context.\n\n");  // Later move this to separate function call
-
-                //app_pc mem_addr = opnd_compute_address(opnd, &mc);
-                //dr_fprintf(STDOUT, "[DEBUG] opnd_compute_address: Computed memory address: %p\n", mem_addr);
-
-                //if (!is_in_active_region(mem_addr, NULL)) {
-                //    continue;  // Ignore the case that actual address is beyond malloc region
-                //}
 
                 if (opnd_is_base_disp(opnd)) {
                     base_reg = opnd_get_base(opnd);
@@ -656,29 +546,12 @@ static dr_emit_flags_t event_bb_insert(void *drcontext, void *tag, instrlist_t *
                     dr_fprintf(STDOUT, "[WARNING] Unsupported operand type. Skipping.\n");
                     continue;
                 }
-                //reg_t base_reg_value = 0;
-
-
-                //base_reg_value = get_register_value(&mc, base_reg);
-
-                //dr_fprintf(STDOUT, "\t\t\tbase_reg: %s, base_addr = %p, offset = 0x%lx\n", get_register_name(base_reg),
-                //                                                                           (void *)base_reg_value,
-                //                                                                           offset);
-
-
-                //mem_access_callback(drcontext, bb, instr, base_reg_value, offset, 1);
 
                 app_pc instr_addr = instr_get_app_pc(instr);
 
                 dr_fprintf(STDOUT, "\t[WR] mem_access_callback is registered to dr_insert_clean_call\n\n");
                 dr_insert_clean_call(drcontext, bb, instr, (void *)mem_access_callback, false, 9,
                                                                                                OPND_CREATE_INTPTR(drcontext),
-                                                                                               //OPND_CREATE_INTPTR(bb),
-                                                                                               //OPND_CREATE_INTPTR(instr),
-                                                                                               //OPND_CREATE_INTPTR(base_reg_value),
-                                                                                               //OPND_CREATE_INTPTR(&opnd),
-                                                                                               //OPND_CREATE_INT32(opnd_get_disp(opnd)),
-                                                                                               //OPND_CREATE_INT32(offset),
                                                                                                OPND_CREATE_INTPTR(instr_addr),
                                                                                                OPND_CREATE_INTPTR(abs_addr),
                                                                                                OPND_CREATE_INTPTR(rel_addr),
@@ -687,18 +560,9 @@ static dr_emit_flags_t event_bb_insert(void *drcontext, void *tag, instrlist_t *
                                                                                                OPND_CREATE_INT64(scale),
                                                                                                OPND_CREATE_INT64(offset),
                                                                                                OPND_CREATE_INT32(1));  // write (is_write = 1)
-                //dr_insert_clean_call(drcontext, bb, instr, (void *)mem_access_callback, false, 6, OPND_CREATE_INTPTR(drcontext),
-                //                                                                                  OPND_CREATE_INTPTR(bb),
-                //                                                                                  OPND_CREATE_INTPTR(instr),
-                //                                                                                  OPND_CREATE_INTPTR(base_reg_value),
-                //                                                                                  //OPND_CREATE_INT32(opnd_get_disp(opnd)),
-                //                                                                                  OPND_CREATE_INT32(offset),
-                //                                                                                  OPND_CREATE_INT32(1));  // write (is_write = 1)
-                //dr_fprintf(STDOUT, "\t[WR] dr_insert_clean_call is done\n");
             }
         }
     }
-    //dr_fprintf(STDOUT, "[ARKADE BB END] handling event_bb is done.\n");
 
     return DR_EMIT_DEFAULT;
 }
