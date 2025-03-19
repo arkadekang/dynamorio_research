@@ -254,15 +254,17 @@ reg_t get_register_value(dr_mcontext_t *mc, reg_id_t reg_id) {
     return 0;
 }
 
-static bool is_in_active_region(void *addr, memory_region_t **region_out) {
+static bool is_in_active_region(void *addr, memory_region_t **region_out, int print) {
     for (int i = 0; i < region_count; i++) {
         if (regions[i].is_active &&
             addr >= regions[i].base_address &&
             addr < (regions[i].base_address + regions[i].size)) {
 
-            dr_fprintf(STDOUT, "\t\tActual VA is within the allocated region\n");
-            dr_fprintf(STDOUT, "\t\t\tActual VA: %p, Malloc Return Address: %p, Malloc Size: 0x%lx, Active: %d\n",
-                                                            addr, regions[i].base_address, regions[i].size, regions[i].is_active);
+            if (print) {
+                dr_fprintf(STDOUT, "\t\tActual VA is within the allocated region\n");
+                dr_fprintf(STDOUT, "\t\t\tActual VA: %p, Malloc Return Address: %p, Malloc Size: 0x%lx, Active: %d\n",
+                                                                addr, regions[i].base_address, regions[i].size, regions[i].is_active);
+            }
 
             if (region_out) {
                 *region_out = &regions[i];
@@ -308,37 +310,37 @@ static void mem_access_callback(void *drcontext, app_pc instr_addr, app_pc abs_a
 
         mem_addr = (app_pc)(base_reg_val + index_reg_val * scale + offset);
 
-        dr_fprintf(STDOUT, "\t\t\tbase_reg: %s, base_addr = %p, index = %p, scale: %d, offset = 0x%lx, Final Address: %p\n", get_register_name(base_reg),
-                                                                                                                             (void *)base_reg_val,
-                                                                                                                             (void *)index_reg_val,
-                                                                                                                             scale,
-                                                                                                                             offset,
-                                                                                                                             mem_addr);
+        dr_fprintf(STDOUT, "\t\t\tbase_reg: %s, base_addr = %p, index = %p, scale: %d, offset = 0x%lx, Final Address: %p\n\n", get_register_name(base_reg),
+                                                                                                                               (void *)base_reg_val,
+                                                                                                                               (void *)index_reg_val,
+                                                                                                                               scale,
+                                                                                                                               offset,
+                                                                                                                               mem_addr);
     }
     else if (abs_addr != NULL) {
 
-        dr_fprintf(STDOUT, "[DEBUG] Address format: absolute address!.\n\n");
+        dr_fprintf(STDOUT, "\t\tAddress format: absolute address!.\n\n");
         mem_addr = abs_addr;
     }
     else if (rel_addr != NULL) {
         if (instr_addr != NULL) {
 
-            dr_fprintf(STDOUT, "[DEBUG] Address format: relative address!.\n\n");
+            dr_fprintf(STDOUT, "\t\tAddress format: relative address!.\n\n");
             mem_addr = instr_addr + (ptr_int_t)rel_addr;
         }
-        dr_fprintf(STDOUT, "[DEBUG] Program Counter is NULL.\n\n");
+        dr_fprintf(STDOUT, "\t\tProgram Counter is NULL.\n\n");
     }
 
-    dr_fprintf(STDOUT, "[DEBUG] Calculated memory address at runtime: %p\n", mem_addr);
+    dr_fprintf(STDOUT, "\t\tCalculated memory address at runtime: %p\n", mem_addr);
     //dr_fprintf(STDOUT, "base_reg_val 1: %p\n", (void *)base_reg_val);
 
-    if (!is_in_active_region(mem_addr, NULL)) {
+    if (!is_in_active_region(mem_addr, NULL, 0)) {
         //dr_fprintf(STDOUT, "[DEBUG] Address %p is outside active malloc regions.\n", mem_addr);
         return;
     }
 
     //dr_fprintf(STDOUT, "base_reg_val 2: %p\n", (void *)base_reg_val);
-    dr_fprintf(STDOUT, "[DEBUG] Final Address: %p\n",mem_addr);
+    //dr_fprintf(STDOUT, "[DEBUG] Final Address: %p\n",mem_addr);
 
 
 
@@ -347,13 +349,13 @@ static void mem_access_callback(void *drcontext, app_pc instr_addr, app_pc abs_a
     app_pc addr = mem_addr;
     //dr_fprintf(STDOUT, "base_reg_val 3: %p\n", (void *)base_reg_val);
 
-    if (addr != NULL && is_in_active_region(addr, &region)) {
+    if (addr != NULL && is_in_active_region(addr, &region, 1)) {
         //dr_fprintf(STDOUT, "base_reg_val 4: %p\n", (void *)base_reg_val);
         dr_fprintf(STDOUT, "\t\t\t[RESULT] -> ");
 
         if ( base_reg_val == (reg_t)(region->base_address) ) {/*{{{*/
-            dr_fprintf(STDOUT, "[PASS] %s at Actual Addr: %p, Base Addr: %p, Offset: 0x%lx, Malloc Ret Addr: %p, Malloc Size: 0x%lx\n",/*{{{*/
-                                (is_write ? "WR" : "RD"), addr, (void *)base_reg_val, offset, region->base_address, region->size);/*}}}*/
+            dr_fprintf(STDOUT, "[PASS] %s at Actual Addr: %p, Base Addr: %p, Index = %p, Scale: %d, Offset: 0x%lx, Malloc Ret Addr: %p, Malloc Size: 0x%lx\n",/*{{{*/
+                                (is_write ? "WR" : "RD"), addr, (void *)base_reg_val, (void *)index_reg_val, scale, offset, region->base_address, region->size);/*}}}*/
         } else {
             test_pass = 0;/*{{{*/
             dr_fprintf(STDOUT, "[FAIL] %s at Actual Addr: %p, Base Addr: %p, Malloc Ret Addr: %p\n",
@@ -567,7 +569,7 @@ static dr_emit_flags_t event_bb_insert(void *drcontext, void *tag, instrlist_t *
 
                 app_pc instr_addr = instr_get_app_pc(instr);
 
-                dr_fprintf(STDOUT, "\t[RD] mem_access_callback is registered to dr_insert_clean_call\n");
+                dr_fprintf(STDOUT, "\t[RD] mem_access_callback is registered to dr_insert_clean_call\n\n");
                 dr_insert_clean_call(drcontext, bb, instr, (void *)mem_access_callback, false, 9,
                                                                                                OPND_CREATE_INTPTR(drcontext),
                                                                                                //OPND_CREATE_INTPTR(bb),
@@ -668,7 +670,7 @@ static dr_emit_flags_t event_bb_insert(void *drcontext, void *tag, instrlist_t *
 
                 app_pc instr_addr = instr_get_app_pc(instr);
 
-                dr_fprintf(STDOUT, "\t[WR] mem_access_callback is registered to dr_insert_clean_call\n");
+                dr_fprintf(STDOUT, "\t[WR] mem_access_callback is registered to dr_insert_clean_call\n\n");
                 dr_insert_clean_call(drcontext, bb, instr, (void *)mem_access_callback, false, 9,
                                                                                                OPND_CREATE_INTPTR(drcontext),
                                                                                                //OPND_CREATE_INTPTR(bb),
