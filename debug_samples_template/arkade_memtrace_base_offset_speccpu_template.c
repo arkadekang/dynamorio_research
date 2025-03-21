@@ -58,6 +58,8 @@ const reg_map_t reg_map[] = {
 static memory_region_t regions[MAX_REGIONS];
 static int region_count = 0;
 static int test_pass = 1;
+static uint64 pass_cnt = 0;
+static uint64 fail_cnt = 0;
 static int stack_search_depth = 5;
 
 static client_id_t client_id;
@@ -76,6 +78,15 @@ static void print_disassembled_instr(void *drcontext, instr_t *instr);
 static void print_disassembled_pc(void *drcontext, app_pc instr_addr);
 
 static bool should_ignore_memory_access(reg_id_t base_reg);
+
+//void verbose_fprintf(file_t f, int level, const char *fmt, ...) {
+//    if (dr_log(NULL, DR_LOG_ALL, level, "")) {
+//        va_list args;
+//        va_start(args, fmt);
+//        dr_vfprintf(f, fmt, args);
+//        va_end(args);
+//    }
+//}
 
 /* Helper function to check if the caller is from user code */
 static bool is_user_malloc(void *drcontext, void *wrapcxt) {
@@ -115,9 +126,9 @@ static void wrap_malloc_pre(void *wrapcxt, OUT void **user_data) {
 
     module_data_t *mod = dr_lookup_module(return_addr);
     if (mod != NULL) {
-        dr_fprintf(STDOUT, "[ARKADE MALLOC CALLED] Module start: %p\n", mod->start);
-        dr_fprintf(STDOUT, "[ARKADE MALLOC CALLED] Module end: %p\n", mod->end);
-        dr_fprintf(STDOUT, "[ARKADE MALLOC CALLED] Module full path: %s\n", mod->full_path);
+        //dr_fprintf(STDOUT, "[ARKADE MALLOC CALLED] Module start: %p\n", mod->start);
+        //dr_fprintf(STDOUT, "[ARKADE MALLOC CALLED] Module end: %p\n", mod->end);
+        //dr_fprintf(STDOUT, "[ARKADE MALLOC CALLED] Module full path: %s\n", mod->full_path);
 
         size_t offset = (size_t)((app_pc)return_addr - mod->start);
 
@@ -256,9 +267,9 @@ static bool is_in_active_region(void *addr, memory_region_t **region_out, int pr
             addr < (regions[i].base_address + regions[i].size)) {
 
             if (print) {
-                dr_fprintf(STDOUT, "\t\tActual VA is within the allocated region\n");
-                dr_fprintf(STDOUT, "\t\t\tActual VA: %p, Malloc Return Address: %p, Malloc Size: 0x%lx, Active: %d\n",
-                                                                addr, regions[i].base_address, regions[i].size, regions[i].is_active);
+                //dr_fprintf(STDOUT, "\t\tActual VA is within the allocated region\n");
+                //dr_fprintf(STDOUT, "\t\t\tActual VA: %p, Malloc Return Address: %p, Malloc Size: 0x%lx, Active: %d\n",
+                //                                                addr, regions[i].base_address, regions[i].size, regions[i].is_active);
             }
 
             if (region_out) {
@@ -267,7 +278,7 @@ static bool is_in_active_region(void *addr, memory_region_t **region_out, int pr
             return true;
         }
     }
-    dr_fprintf(STDOUT, "\t\tActual VA: %p is beyond the allocated region\n\n", addr);
+    //dr_fprintf(STDOUT, "\t\tActual VA: %p is beyond the allocated region\n\n", addr);
 
     return false;
 }
@@ -276,12 +287,12 @@ static void mem_access_callback(void *drcontext, app_pc instr_addr, app_pc abs_a
 
     int thread_id = dr_get_thread_id(drcontext);
 
-    dr_fprintf(STDOUT, "\t\tEntered mem_access_callback\n");
+    //dr_fprintf(STDOUT, "\t\tEntered mem_access_callback\n");
     app_pc mem_addr = NULL;
     reg_t base_reg_val = 0;
     reg_t index_reg_val = 0;
 
-    print_disassembled_pc(drcontext, instr_addr);
+    //print_disassembled_pc(drcontext, instr_addr);
 
     if (base_reg != DR_REG_NULL) {
         dr_mcontext_t mc = { sizeof(mc), DR_MC_ALL };
@@ -290,8 +301,8 @@ static void mem_access_callback(void *drcontext, app_pc instr_addr, app_pc abs_a
             dr_fprintf(STDOUT, "[ERROR] Failed to get register context at runtime!\n");
             return;
         }
-        dr_fprintf(STDOUT, "\n\t\tSuccessfully retrieved register context at runtime!.");
-        dr_fprintf(STDOUT, "\n\t\tAddress format: base + offset!.\n\n");
+        //dr_fprintf(STDOUT, "\n\t\tSuccessfully retrieved register context at runtime!.");
+        //dr_fprintf(STDOUT, "\n\t\tAddress format: base + offset!.\n\n");
 
             base_reg_val = get_register_value(&mc, base_reg);
 
@@ -301,28 +312,28 @@ static void mem_access_callback(void *drcontext, app_pc instr_addr, app_pc abs_a
 
         mem_addr = (app_pc)(base_reg_val + index_reg_val * scale + offset);
 
-        dr_fprintf(STDOUT, "\t\t\tbase_reg: %s, base_addr = %p, index = %p, scale: %d, offset = 0x%lx, Final Address: %p\n\n", get_register_name(base_reg),
-                                                                                                                               (void *)base_reg_val,
-                                                                                                                               (void *)index_reg_val,
-                                                                                                                               scale,
-                                                                                                                               offset,
-                                                                                                                               mem_addr);
+        //dr_fprintf(STDOUT, "\t\t\tbase_reg: %s, base_addr = %p, index = %p, scale: %d, offset = 0x%lx, Final Address: %p\n\n", get_register_name(base_reg),
+        //                                                                                                                       (void *)base_reg_val,
+        //                                                                                                                       (void *)index_reg_val,
+        //                                                                                                                       scale,
+        //                                                                                                                       offset,
+        //                                                                                                                       mem_addr);
     }
     else if (abs_addr != NULL) {
 
-        dr_fprintf(STDOUT, "\t\tAddress format: absolute address!.\n\n");
+        //dr_fprintf(STDOUT, "\t\tAddress format: absolute address!.\n\n");
         mem_addr = abs_addr;
     }
     else if (rel_addr != NULL) {
         if (instr_addr != NULL) {
 
-            dr_fprintf(STDOUT, "\t\tAddress format: relative address!.\n\n");
+            //dr_fprintf(STDOUT, "\t\tAddress format: relative address!.\n\n");
             mem_addr = instr_addr + (ptr_int_t)rel_addr;
         }
-        dr_fprintf(STDOUT, "\t\tProgram Counter is NULL.\n\n");
+        //dr_fprintf(STDOUT, "\t\tProgram Counter is NULL.\n\n");
     }
 
-    dr_fprintf(STDOUT, "\t\tCalculated memory address at runtime: %p\n", mem_addr);
+    //dr_fprintf(STDOUT, "\t\tCalculated memory address at runtime: %p\n", mem_addr);
 
     if (!is_in_active_region(mem_addr, NULL, 0)) {
         //dr_fprintf(STDOUT, "[DEBUG] Address %p is outside active malloc regions.\n", mem_addr);
@@ -337,15 +348,17 @@ static void mem_access_callback(void *drcontext, app_pc instr_addr, app_pc abs_a
     if (addr != NULL && is_in_active_region(addr, &region, 1)) {
         print_disassembled_pc(drcontext, instr_addr);
 
-        dr_fprintf(STDOUT, "\t\t\t[RESULT] -> ");
+        //dr_fprintf(STDOUT, "\t\t\t[RESULT] -> ");
 
         if ( base_reg_val == (reg_t)(region->base_address) ) {/*{{{*/
-            dr_fprintf(STDOUT, "[PASS] %s at Actual Addr: %p, Base Addr: %p, Index = %p, Scale: %d, Offset: 0x%lx, Malloc Ret Addr: %p, Malloc Size: 0x%lx\n",/*{{{*/
-                                (is_write ? "WR" : "RD"), addr, (void *)base_reg_val, (void *)index_reg_val, scale, offset, region->base_address, region->size);/*}}}*/
+            pass_cnt++;
+            //dr_fprintf(STDOUT, "[PASS] %s at Actual Addr: %p, Base Addr: %p, Index = %p, Scale: %d, Offset: 0x%lx, Malloc Ret Addr: %p, Malloc Size: 0x%lx\n",/*{{{*/
+            //                    (is_write ? "WR" : "RD"), addr, (void *)base_reg_val, (void *)index_reg_val, scale, offset, region->base_address, region->size);/*}}}*/
         } else {
             test_pass = 0;/*{{{*/
-            dr_fprintf(STDOUT, "[FAIL] %s at Actual Addr: %p, Base Addr: %p, Malloc Ret Addr: %p\n",
-                                (is_write ? "WR" : "RD"), addr, (void *)base_reg_val, region->base_address);/*}}}*/
+            fail_cnt++;
+            //dr_fprintf(STDOUT, "[FAIL] %s at Actual Addr: %p, Base Addr: %p, Malloc Ret Addr: %p\n",
+            //                    (is_write ? "WR" : "RD"), addr, (void *)base_reg_val, region->base_address);/*}}}*/
         }
 
         dr_mcontext_t mcontext = { sizeof(mcontext), DR_MC_ALL };
@@ -410,7 +423,7 @@ static bool should_ignore_memory_access(reg_id_t base_reg) {
 static void print_disassembled_pc(void *drcontext, app_pc instr_addr) {
     byte *pc = (byte *)instr_addr;
 
-    dr_fprintf(STDOUT, "\t\tInstruction at PC %p: \n", instr_addr);
+    //dr_fprintf(STDOUT, "\t\tInstruction at PC %p: \n", instr_addr);
     disassemble_with_info(drcontext, pc, STDOUT, true, true);
 }
 
@@ -432,8 +445,8 @@ static void print_disassembled_opnd(void *drcontext, opnd_t opnd) {
 }
 
 static dr_emit_flags_t event_bb_insert(void *drcontext, void *tag, instrlist_t *bb, bool for_trace, bool translating, void **user_data) {
-    dr_fprintf(STDOUT, "\n\n\n\n");
-    dr_fprintf(STDOUT, "[ARKADE BB START] Basic Block is detected -> event_bb_insert is called.\n\n");
+    //dr_fprintf(STDOUT, "\n\n\n\n");
+    //dr_fprintf(STDOUT, "[ARKADE BB START] Basic Block is detected -> event_bb_insert is called.\n\n");
 
     for (instr_t *instr = instrlist_first(bb); instr != NULL; instr = instr_get_next(instr)) {
 
@@ -450,8 +463,8 @@ static dr_emit_flags_t event_bb_insert(void *drcontext, void *tag, instrlist_t *
 
         // Skip non-memory access instruction
         if ( !(instr_reads_memory(instr) | instr_writes_memory(instr)) ) {
-            print_disassembled_instr(drcontext, instr);
-            dr_fprintf(STDOUT, "\t\tMemory access doesn't occur.\n\n");
+            //print_disassembled_instr(drcontext, instr);
+            //dr_fprintf(STDOUT, "\t\tMemory access doesn't occur.\n\n");
             continue;
         }
 
@@ -462,14 +475,14 @@ static dr_emit_flags_t event_bb_insert(void *drcontext, void *tag, instrlist_t *
 
                 // Check if the given instruction is memory reference
                 if ( !opnd_is_memory_reference(opnd) ) {
-                    print_disassembled_instr(drcontext, instr);
-                    print_disassembled_opnd(drcontext, opnd);
-                    dr_fprintf(STDOUT, "is not a memory reference\n\n");
+                    //print_disassembled_instr(drcontext, instr);
+                    //print_disassembled_opnd(drcontext, opnd);
+                    //dr_fprintf(STDOUT, "is not a memory reference\n\n");
                     continue;
                 }
-                print_disassembled_instr(drcontext, instr);
-                print_disassembled_opnd(drcontext, opnd);
-                dr_fprintf(STDOUT, "is a read memory reference\n\n");
+                //print_disassembled_instr(drcontext, instr);
+                //print_disassembled_opnd(drcontext, opnd);
+                //dr_fprintf(STDOUT, "is a read memory reference\n\n");
 
                 if (opnd_is_base_disp(opnd)) {
                     base_reg = opnd_get_base(opnd);
@@ -494,7 +507,7 @@ static dr_emit_flags_t event_bb_insert(void *drcontext, void *tag, instrlist_t *
 
                 app_pc instr_addr = instr_get_app_pc(instr);
 
-                dr_fprintf(STDOUT, "\t[RD] mem_access_callback is registered to dr_insert_clean_call\n\n");
+                //dr_fprintf(STDOUT, "\t[RD] mem_access_callback is registered to dr_insert_clean_call\n\n");
                 dr_insert_clean_call(drcontext, bb, instr, (void *)mem_access_callback, false, 9,
                                                                                                OPND_CREATE_INTPTR(drcontext),
                                                                                                OPND_CREATE_INTPTR(instr_addr),
@@ -514,14 +527,14 @@ static dr_emit_flags_t event_bb_insert(void *drcontext, void *tag, instrlist_t *
 
                 // Check if the given instruction is memory reference
                 if ( !opnd_is_memory_reference(opnd) ) {
-                    print_disassembled_instr(drcontext, instr);
-                    print_disassembled_opnd(drcontext, opnd);
-                    dr_fprintf(STDOUT, "is not a memory reference\n\n");
+                    //print_disassembled_instr(drcontext, instr);
+                    //print_disassembled_opnd(drcontext, opnd);
+                    //dr_fprintf(STDOUT, "is not a memory reference\n\n");
                     continue;
                 }
-                print_disassembled_instr(drcontext, instr);
-                print_disassembled_opnd(drcontext, opnd);
-                dr_fprintf(STDOUT, "is a write memory reference\n\n");
+                //print_disassembled_instr(drcontext, instr);
+                //print_disassembled_opnd(drcontext, opnd);
+                //dr_fprintf(STDOUT, "is a write memory reference\n\n");
 
                 if (opnd_is_base_disp(opnd)) {
                     base_reg = opnd_get_base(opnd);
@@ -549,7 +562,7 @@ static dr_emit_flags_t event_bb_insert(void *drcontext, void *tag, instrlist_t *
 
                 app_pc instr_addr = instr_get_app_pc(instr);
 
-                dr_fprintf(STDOUT, "\t[WR] mem_access_callback is registered to dr_insert_clean_call\n\n");
+                //dr_fprintf(STDOUT, "\t[WR] mem_access_callback is registered to dr_insert_clean_call\n\n");
                 dr_insert_clean_call(drcontext, bb, instr, (void *)mem_access_callback, false, 9,
                                                                                                OPND_CREATE_INTPTR(drcontext),
                                                                                                OPND_CREATE_INTPTR(instr_addr),
@@ -569,10 +582,11 @@ static dr_emit_flags_t event_bb_insert(void *drcontext, void *tag, instrlist_t *
 
 static void report_test_result(void) {
     if (test_pass == 1) {
-       dr_fprintf(STDOUT, "PASS: %s\n", "Memory is accessed by base address.");
+       dr_fprintf(STDOUT, "PASS: %s\n", "All memory accesses are based on (base + offset) scheme.");
     } else {
-       dr_fprintf(STDOUT, "FAIL: %s\n", "Memory is NOT accessed by base address.");
+       dr_fprintf(STDOUT, "FAIL: %s\n", "Some memory accesses are NOT based on (base + offset) scheme.");
     }
+    dr_fprintf(STDOUT, "Pass count: %llu, Fail count: %llu \n", pass_cnt, fail_cnt);
 }
 
 static void module_load_event(void *drcontext, const module_data_t *mod, bool loaded) {
@@ -581,17 +595,17 @@ static void module_load_event(void *drcontext, const module_data_t *mod, bool lo
 
     if (malloc_towrap != NULL) {
         if (drwrap_wrap(malloc_towrap, wrap_malloc_pre, wrap_malloc_post)) {
-            dr_fprintf(STDOUT, "\n[ARKADE WRAP MALLOC] Wrapped malloc successfully @ %p\n", malloc_towrap);
+            //dr_fprintf(STDOUT, "\n[ARKADE WRAP MALLOC] Wrapped malloc successfully @ %p\n", malloc_towrap);
         } else {
-            dr_fprintf(STDOUT, "\n[ARKADE WRAP MALLOC] Failed to wrap malloc @ %p: already wrapped?\n", malloc_towrap);
+            //dr_fprintf(STDOUT, "\n[ARKADE WRAP MALLOC] Failed to wrap malloc @ %p: already wrapped?\n", malloc_towrap);
         }
     }
 
     if (free_towrap != NULL) {
         if (drwrap_wrap(free_towrap, wrap_free_pre, NULL)) {
-            dr_fprintf(STDOUT, "[ARKADE WRAP FREE] Wrapped free successfully @ %p\n", free_towrap);
+            //dr_fprintf(STDOUT, "[ARKADE WRAP FREE] Wrapped free successfully @ %p\n", free_towrap);
         } else {
-            dr_fprintf(STDOUT, "[ARKADE WRAP FREE] Failed to wrap free @ %p: already wrapped?\n", free_towrap);
+            //dr_fprintf(STDOUT, "[ARKADE WRAP FREE] Failed to wrap free @ %p: already wrapped?\n", free_towrap);
         }
     }
 }
@@ -622,19 +636,19 @@ static void event_exit(void) {
     dr_mutex_destroy(mutex);
 
     drwrap_exit();
-    dr_fprintf(STDOUT, "[ARKADE EXIT 1] drwrap_exit is done.\n");
+    //dr_fprintf(STDOUT, "[ARKADE EXIT 1] drwrap_exit is done.\n");
 
     drmgr_exit();
-    dr_fprintf(STDOUT, "[ARKADE EXIT 2] drmgr_exit is done.\n");
+    //dr_fprintf(STDOUT, "[ARKADE EXIT 2] drmgr_exit is done.\n");
 
     drsym_exit();
-    dr_fprintf(STDOUT, "[ARKADE EXIT 2] drsym_exit is done.\n");
+    //dr_fprintf(STDOUT, "[ARKADE EXIT 2] drsym_exit is done.\n");
 
     drutil_exit();
-    dr_fprintf(STDOUT, "[ARKADE EXIT 3] drutil_exit is done.\n");
+    //dr_fprintf(STDOUT, "[ARKADE EXIT 3] drutil_exit is done.\n");
 
     drreg_exit();
-    dr_fprintf(STDOUT, "[ARKADE EXIT 4] drreg_exit is done.\n");
+    //dr_fprintf(STDOUT, "[ARKADE EXIT 4] drreg_exit is done.\n");
 
     report_test_result();
 }
@@ -643,39 +657,39 @@ DR_EXPORT void dr_client_main(client_id_t id, int argc, const char *argv[]) {
     dr_fprintf(STDOUT, "[ARKADE INIT 1] Client initialization starts.\n");
 
     if ( drmgr_init() ) {
-        dr_fprintf(STDOUT, "[ARKADE INIT 2] drmgr_init is done.\n");
+        //dr_fprintf(STDOUT, "[ARKADE INIT 2] drmgr_init is done.\n");
     } else {
-        dr_fprintf(STDOUT, "[ARKADE INIT 2] drmgr_init is NOT properly done.\n");
+        //dr_fprintf(STDOUT, "[ARKADE INIT 2] drmgr_init is NOT properly done.\n");
         DR_ASSERT(false);
     }
 
     if ( drutil_init() ) {
-        dr_fprintf(STDOUT, "[ARKADE INIT 3] drutil_init is done.\n");
+        //dr_fprintf(STDOUT, "[ARKADE INIT 3] drutil_init is done.\n");
     } else {
-        dr_fprintf(STDOUT, "[ARKADE INIT 3] drutil_init is NOT properly done.\n");
+        //dr_fprintf(STDOUT, "[ARKADE INIT 3] drutil_init is NOT properly done.\n");
         DR_ASSERT(false);
     }
 
     drreg_options_t ops = { sizeof(drreg_options_t), 3, false };
     drreg_status_t result = drreg_init(&ops);
     if ( result == DRREG_SUCCESS ) {
-        dr_fprintf(STDOUT, "[ARKADE INIT 4] drreg_init is done.\n");
+        //dr_fprintf(STDOUT, "[ARKADE INIT 4] drreg_init is done.\n");
     } else {
-        dr_fprintf(STDOUT, "[ARKADE INIT 4] drreg_init is NOT properly done.\n");
+        //dr_fprintf(STDOUT, "[ARKADE INIT 4] drreg_init is NOT properly done.\n");
         DR_ASSERT(false);
     }
 
     if ( drwrap_init() ) {
-        dr_fprintf(STDOUT, "[ARKADE INIT 5] drwrap_init is done.\n");
+        //dr_fprintf(STDOUT, "[ARKADE INIT 5] drwrap_init is done.\n");
     } else {
-        dr_fprintf(STDOUT, "[ARKADE INIT 5] drwrap_init is NOT properly done.\n");
+        //dr_fprintf(STDOUT, "[ARKADE INIT 5] drwrap_init is NOT properly done.\n");
         DR_ASSERT(false);
     }
 
     if ( drsym_init(0) == DRSYM_SUCCESS ) {
-        dr_fprintf(STDOUT, "[ARKADE INIT 6] drsym_init is done.\n");
+        //dr_fprintf(STDOUT, "[ARKADE INIT 6] drsym_init is done.\n");
     } else {
-        dr_fprintf(STDOUT, "[ARKADE INIT 6] drsym_init is NOT properly done.\n");
+        //dr_fprintf(STDOUT, "[ARKADE INIT 6] drsym_init is NOT properly done.\n");
         DR_ASSERT(false);
     }
 
@@ -686,10 +700,10 @@ DR_EXPORT void dr_client_main(client_id_t id, int argc, const char *argv[]) {
     drmgr_register_thread_init_event(event_thread_init);
     drmgr_register_thread_exit_event(event_thread_exit);
     drmgr_register_module_load_event(module_load_event);
-    dr_fprintf(STDOUT, "[ARKADE INIT 7] module_load_event registration is done\n");
+    //dr_fprintf(STDOUT, "[ARKADE INIT 7] module_load_event registration is done\n");
 
     drmgr_register_bb_instrumentation_event(event_bb_insert, NULL, NULL);
-    dr_fprintf(STDOUT, "[ARKADE INIT 8] BB(Basic Block) insertion is done\n\n");
+    //dr_fprintf(STDOUT, "[ARKADE INIT 8] BB(Basic Block) insertion is done\n\n");
 
     tls_idx = drmgr_register_tls_field();
     DR_ASSERT(tls_idx != -1);
