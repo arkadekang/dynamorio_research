@@ -77,6 +77,15 @@ static void print_disassembled_pc(void *drcontext, app_pc instr_addr);
 
 static bool should_ignore_memory_access(reg_id_t base_reg);
 
+//void verbose_fprintf(file_t f, int level, const char *fmt, ...) {
+//    if (dr_log(NULL, DR_LOG_ALL, level, "")) {
+//        va_list args;
+//        va_start(args, fmt);
+//        dr_vfprintf(f, fmt, args);
+//        va_end(args);
+//    }
+//}
+
 /* Helper function to check if the caller is from user code */
 static bool is_user_malloc(void *drcontext, void *wrapcxt) {
     void *return_addr = drwrap_get_retaddr(wrapcxt);

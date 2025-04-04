@@ -1,0 +1,6 @@
+> cd $DYNAMORIO_HOME/samples/build
+> rm -rf *
+> cmake -DCMAKE_CXX_COMPILER=/usr/bin/g++ -DCMAKE_C_COMPILER=/usr/bin/gcc ..
+> make -j 32
+> cd $DYNAMORIO_HOME/arkade_examples
+> drrun -loglevel 1 -logmask 0x80000000 -logdir ./logs -c ../samples/build/bin/libarkade_memtrace_base_offset_speccpu.so -- ./hello2
