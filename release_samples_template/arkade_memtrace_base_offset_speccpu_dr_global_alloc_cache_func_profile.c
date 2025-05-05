@@ -100,19 +100,19 @@ static uint64 timer_wrap_malloc_post = 0, count_wrap_malloc_post = 0;
 static uint64 timer_wrap_free_pre = 0, count_wrap_free_pre = 0;
 
 static void report_function_timing() {
-    dr_fprintf(STDOUT, "\n=== FUNCTION TIMING REPORT (intermediate) ===\n");
-    dr_fprintf(STDOUT, "is_in_active_region: count = %llu, total ns = %llu, avg ns = %llu\n",
-               count_is_in_active_region, timer_is_in_active_region,
-               count_is_in_active_region ? timer_is_in_active_region / count_is_in_active_region : 0);
-    dr_fprintf(STDOUT, "find_free_index: count = %llu, total ns = %llu, avg ns = %llu\n",
-               count_find_free_index, timer_find_free_index,
-               count_find_free_index ? timer_find_free_index / count_find_free_index : 0);
-    dr_fprintf(STDOUT, "wrap_malloc_post: count = %llu, total ns = %llu, avg ns = %llu\n",
-               count_wrap_malloc_post, timer_wrap_malloc_post,
-               count_wrap_malloc_post ? timer_wrap_malloc_post / count_wrap_malloc_post : 0);
-    dr_fprintf(STDOUT, "wrap_free_pre: count = %llu, total ns = %llu, avg ns = %llu\n",
-               count_wrap_free_pre, timer_wrap_free_pre,
-               count_wrap_free_pre ? timer_wrap_free_pre / count_wrap_free_pre : 0);
+    //dr_fprintf(STDOUT, "\n=== FUNCTION TIMING REPORT (intermediate) ===\n");
+    //dr_fprintf(STDOUT, "is_in_active_region: count = %llu, total ns = %llu, avg ns = %llu\n",
+    //           count_is_in_active_region, timer_is_in_active_region,
+    //           count_is_in_active_region ? timer_is_in_active_region / count_is_in_active_region : 0);
+    //dr_fprintf(STDOUT, "find_free_index: count = %llu, total ns = %llu, avg ns = %llu\n",
+    //           count_find_free_index, timer_find_free_index,
+    //           count_find_free_index ? timer_find_free_index / count_find_free_index : 0);
+    //dr_fprintf(STDOUT, "wrap_malloc_post: count = %llu, total ns = %llu, avg ns = %llu\n",
+    //           count_wrap_malloc_post, timer_wrap_malloc_post,
+    //           count_wrap_malloc_post ? timer_wrap_malloc_post / count_wrap_malloc_post : 0);
+    //dr_fprintf(STDOUT, "wrap_free_pre: count = %llu, total ns = %llu, avg ns = %llu\n",
+    //           count_wrap_free_pre, timer_wrap_free_pre,
+    //           count_wrap_free_pre ? timer_wrap_free_pre / count_wrap_free_pre : 0);
 }
 
 static inline struct timespec start_profile_section(uint64 *counter) {
@@ -271,7 +271,7 @@ static void wrap_malloc_post(void *wrapcxt, void *user_data) {
     per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_idx);
     size_t size = data->size; // Obtain the size saved in wrap_malloc_pre
 
-    bool is_user = is_user_malloc(dr_get_current_drcontext(), wrapcxt);
+    //bool is_user = is_user_malloc(dr_get_current_drcontext(), wrapcxt);
 
     int index = find_free_index();
 
@@ -290,17 +290,17 @@ static void wrap_malloc_post(void *wrapcxt, void *user_data) {
     regions[index].is_active = true;
     last_hit_index = index;
 
-    if (is_user) {
+    //if (is_user) {
        //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[ARKADE MALLOC RETURN] Malloc (User Code) return base address: %p, Size: %zu, Active: %s\n",
        //                                         regions[region_count].base_address,
        //                                         regions[region_count].size,
        //                                         regions[region_count].is_active ? "true" : "false");
-    } else {
+    //} else {
        //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[ARKADE MALLOC RETURN] Malloc (Nonuser Code) return base address: %p, Size: %zu, Active: %s\n",
        //                                         regions[region_count].base_address,
        //                                         regions[region_count].size,
        //                                         regions[region_count].is_active ? "true" : "false");
-    }
+    //}
 
     end_profile_section(t, &timer_wrap_malloc_post, count_wrap_malloc_post, FUNC_CALL_TRIGGER_THRESHOLD);
 }

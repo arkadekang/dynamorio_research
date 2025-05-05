@@ -16,7 +16,8 @@
 #include "utils.h"
 #include "uthash.h" // Include uthash header
 
-#define INITIAL_REGION_CAPACITY 65536
+//#define INITIAL_REGION_CAPACITY 65536
+#define INITIAL_REGION_CAPACITY 8192
 #define MAX_SAFE_CAPACITY 10000000
 #define MALLOC_ROUTINE_NAME "malloc"
 #define FREE_ROUTINE_NAME "free"
@@ -111,22 +112,22 @@ static uint64 timer_wrap_malloc_pre = 0, count_wrap_malloc_pre = 0;
 static uint64 timer_wrap_free_pre = 0, count_wrap_free_pre = 0;
 
 static void report_function_timing() {
-    dr_fprintf(STDOUT, "\n=== FUNCTION TIMING REPORT (intermediate) ===\n");
-    dr_fprintf(STDOUT, "is_in_active_region: count = %llu, total ns = %llu, avg ns = %llu\n",
-               count_is_in_active_region, timer_is_in_active_region,
-               count_is_in_active_region ? timer_is_in_active_region / count_is_in_active_region : 0);
-    dr_fprintf(STDOUT, "find_free_index: count = %llu, total ns = %llu, avg ns = %llu\n",
-               count_find_free_index, timer_find_free_index,
-               count_find_free_index ? timer_find_free_index / count_find_free_index : 0);
-    dr_fprintf(STDOUT, "wrap_malloc_post: count = %llu, total ns = %llu, avg ns = %llu\n",
-               count_wrap_malloc_post, timer_wrap_malloc_post,
-               count_wrap_malloc_post ? timer_wrap_malloc_post / count_wrap_malloc_post : 0);
-    dr_fprintf(STDOUT, "wrap_malloc_pre: count = %llu, total ns = %llu, avg ns = %llu\n",
-               count_wrap_malloc_pre, timer_wrap_malloc_pre,
-               count_wrap_malloc_pre ? timer_wrap_malloc_pre / count_wrap_malloc_pre : 0);
-    dr_fprintf(STDOUT, "wrap_free_pre: count = %llu, total ns = %llu, avg ns = %llu\n",
-               count_wrap_free_pre, timer_wrap_free_pre,
-               count_wrap_free_pre ? timer_wrap_free_pre / count_wrap_free_pre : 0);
+    //dr_fprintf(STDOUT, "\n=== FUNCTION TIMING REPORT (intermediate) ===\n");
+    //dr_fprintf(STDOUT, "is_in_active_region: count = %llu, total ns = %llu, avg ns = %llu\n",
+    //           count_is_in_active_region, timer_is_in_active_region,
+    //           count_is_in_active_region ? timer_is_in_active_region / count_is_in_active_region : 0);
+    //dr_fprintf(STDOUT, "find_free_index: count = %llu, total ns = %llu, avg ns = %llu\n",
+    //           count_find_free_index, timer_find_free_index,
+    //           count_find_free_index ? timer_find_free_index / count_find_free_index : 0);
+    //dr_fprintf(STDOUT, "wrap_malloc_post: count = %llu, total ns = %llu, avg ns = %llu\n",
+    //           count_wrap_malloc_post, timer_wrap_malloc_post,
+    //           count_wrap_malloc_post ? timer_wrap_malloc_post / count_wrap_malloc_post : 0);
+    //dr_fprintf(STDOUT, "wrap_malloc_pre: count = %llu, total ns = %llu, avg ns = %llu\n",
+    //           count_wrap_malloc_pre, timer_wrap_malloc_pre,
+    //           count_wrap_malloc_pre ? timer_wrap_malloc_pre / count_wrap_malloc_pre : 0);
+    //dr_fprintf(STDOUT, "wrap_free_pre: count = %llu, total ns = %llu, avg ns = %llu\n",
+    //           count_wrap_free_pre, timer_wrap_free_pre,
+    //           count_wrap_free_pre ? timer_wrap_free_pre / count_wrap_free_pre : 0);
 }
 
 static inline struct timespec start_profile_section(uint64 *counter) {
@@ -185,57 +186,58 @@ static void wrap_malloc_pre(void *wrapcxt, OUT void **user_data) {
        //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 2, "[ARKADE MALLOC CALLED] Malloc (Nonuser Code) (size: %zu)\n", size);
     //}
 
-    void *return_addr = drwrap_get_retaddr(wrapcxt);
-    //drsym_info_t sym;
-    //memset(&sym, 0, sizeof(sym));
-    //sym.struct_size = sizeof(sym);
-    //sym.name = (char *)dr_global_alloc(256);
-    //sym.name_size = 256;
-    //sym.file = (char *)dr_global_alloc(256);
-    //sym.file_size = 256;
+//    void *return_addr = drwrap_get_retaddr(wrapcxt);
+//    //drsym_info_t sym;
+//    //memset(&sym, 0, sizeof(sym));
+//    //sym.struct_size = sizeof(sym);
+//    //sym.name = (char *)dr_global_alloc(256);
+//    //sym.name_size = 256;
+//    //sym.file = (char *)dr_global_alloc(256);
+//    //sym.file_size = 256;
+//
+//    static module_data_t *last_mod_malloc = NULL;
+//    module_data_t *mod = NULL;
+//
+//    if (last_mod_malloc != NULL &&
+//        (app_pc)return_addr >= last_mod_malloc->start &&
+//        (app_pc)return_addr < last_mod_malloc->end) {
+//        mod = last_mod_malloc;
+//    } else {
+//        mod = dr_lookup_module(return_addr);
+//        last_mod_malloc = mod;
+//    }
+//
+//
+//    if (mod != NULL) {
+//       //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[ARKADE MALLOC CALLED] Module start: %p\n", mod->start);
+//       //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[ARKADE MALLOC CALLED] Module end: %p\n", mod->end);
+//       //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[ARKADE MALLOC CALLED] Module full path: %s\n", mod->full_path);
+//
+//        size_t offset = (size_t)((app_pc)return_addr - mod->start);
+//
+//        //dr_log(NULL, DR_LOG_MASK_BASEOFFSET, "[ARKADE] Offset: %zu\n", offset);
+//
+//        /* ARKADE
+//        drsym_error_t sym_res = drsym_lookup_address(mod->full_path, offset, &sym, DRSYM_DEFAULT_FLAGS);
+//        dr_free_module_data(mod);
+//        if (sym_res == DRSYM_SUCCESS) {
+//        //if (sym_res == DRSYM_SUCCESS | sym_res == DRSYM_ERROR_LINE_NOT_AVAILABLE) {
+//            if (is_user) {
+//               //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[ARKADE MALLOC CALLED] Caller (User Code): %s (%s:%d)\n", sym.name, sym.file, sym.line);
+//            } else {
+//               //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[ARKADE MALLOC CALLED] Caller (Nonuser Code): %s (%s:%d)\n", sym.name, sym.file, sym.line);
+//            }
+//        } else {
+//           //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 2, "[ARKADE MALLOC CALLED] Caller: Unknown, sym_res: %d\n", sym_res);
+//        }
+//        */
+//    } else {
+//       //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 2, "[ARKADE MALLOC CALLED] Caller: Unknown, mode: NULL\n");
+//    }
+//
+//    //dr_global_free(sym.name, 256);
+//    //dr_global_free(sym.file, 256);
 
-    static module_data_t *last_mod_malloc = NULL;
-    module_data_t *mod = NULL;
-
-    if (last_mod_malloc != NULL &&
-        (app_pc)return_addr >= last_mod_malloc->start &&
-        (app_pc)return_addr < last_mod_malloc->end) {
-        mod = last_mod_malloc;
-    } else {
-        mod = dr_lookup_module(return_addr);
-        last_mod_malloc = mod;
-    }
-
-
-    if (mod != NULL) {
-       //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[ARKADE MALLOC CALLED] Module start: %p\n", mod->start);
-       //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[ARKADE MALLOC CALLED] Module end: %p\n", mod->end);
-       //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[ARKADE MALLOC CALLED] Module full path: %s\n", mod->full_path);
-
-        size_t offset = (size_t)((app_pc)return_addr - mod->start);
-
-        //dr_log(NULL, DR_LOG_MASK_BASEOFFSET, "[ARKADE] Offset: %zu\n", offset);
-
-        /* ARKADE
-        drsym_error_t sym_res = drsym_lookup_address(mod->full_path, offset, &sym, DRSYM_DEFAULT_FLAGS);
-        dr_free_module_data(mod);
-        if (sym_res == DRSYM_SUCCESS) {
-        //if (sym_res == DRSYM_SUCCESS | sym_res == DRSYM_ERROR_LINE_NOT_AVAILABLE) {
-            if (is_user) {
-               //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[ARKADE MALLOC CALLED] Caller (User Code): %s (%s:%d)\n", sym.name, sym.file, sym.line);
-            } else {
-               //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[ARKADE MALLOC CALLED] Caller (Nonuser Code): %s (%s:%d)\n", sym.name, sym.file, sym.line);
-            }
-        } else {
-           //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 2, "[ARKADE MALLOC CALLED] Caller: Unknown, sym_res: %d\n", sym_res);
-        }
-        */
-    } else {
-       //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 2, "[ARKADE MALLOC CALLED] Caller: Unknown, mode: NULL\n");
-    }
-
-    //dr_global_free(sym.name, 256);
-    //dr_global_free(sym.file, 256);
 
     end_profile_section(t, &timer_wrap_malloc_pre, count_wrap_malloc_pre, FUNC_CALL_TRIGGER_THRESHOLD);
 }
@@ -257,8 +259,8 @@ void expand_region_table() {
 
     int old_capacity = region_capacity;
     //int new_capacity = region_capacity + 50000;
-    int new_capacity = region_capacity + 65536;
-    //int new_capacity = region_capacity * 2;
+    //int new_capacity = region_capacity + 65536;
+    int new_capacity = region_capacity * 2;
 
     memory_region_t *new_regions = dr_global_alloc(sizeof(memory_region_t) * new_capacity);
 
@@ -408,60 +410,61 @@ static void wrap_free_pre(void *wrapcxt, OUT void **user_data) {
         if (last_hit_index == index) last_hit_index = -1;
     }
 
-    void *return_addr = drwrap_get_retaddr(wrapcxt);
-    //drsym_info_t sym;
-    //memset(&sym, 0, sizeof(sym));
-    //sym.struct_size = sizeof(sym);
-    //sym.name = (char *)dr_global_alloc(256);
-    //sym.name_size = 256;
-    //sym.file = (char *)dr_global_alloc(256);
-    //sym.file_size = 256;
+//    void *return_addr = drwrap_get_retaddr(wrapcxt);
+//    //drsym_info_t sym;
+//    //memset(&sym, 0, sizeof(sym));
+//    //sym.struct_size = sizeof(sym);
+//    //sym.name = (char *)dr_global_alloc(256);
+//    //sym.name_size = 256;
+//    //sym.file = (char *)dr_global_alloc(256);
+//    //sym.file_size = 256;
+//
+//    static module_data_t *last_mod_free = NULL;
+//    module_data_t *mod = NULL;
+//
+//    if (last_mod_free != NULL &&
+//        (app_pc)return_addr >= last_mod_free->start &&
+//        (app_pc)return_addr < last_mod_free->end) {
+//        mod = last_mod_free;
+//    } else {
+//        mod = dr_lookup_module(return_addr);
+//        last_mod_free = mod;
+//    }
+//
+//    if (double_free == 0) {
+//        if (mod != NULL) {
+//           //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[ARKADE FREE CALLED] Module start: %p\n", mod->start);
+//           //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[ARKADE FREE CALLED] Module end: %p\n", mod->end);
+//           //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[ARKADE FREE CALLED] Module full path: %s\n", mod->full_path);
+//
+//            size_t offset = (size_t)((app_pc)return_addr - mod->start);
+//
+//            //dr_log(NULL, DR_LOG_MASK_BASEOFFSET, "[ARKADE] Offset: %zu\n", offset);
+//
+//            /* ARKADE
+//            drsym_error_t sym_res = drsym_lookup_address(mod->full_path, offset, &sym, DRSYM_DEFAULT_FLAGS);
+//            dr_free_module_data(mod);
+//            //if (sym_res == DRSYM_SUCCESS) {
+//            if (sym_res == DRSYM_SUCCESS | sym_res == DRSYM_ERROR_LINE_NOT_AVAILABLE) {
+//                if (is_user) {
+//                   //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[USER] Caller: %s (%s:%d)\n", sym.name, sym.file, sym.line);
+//                } else {
+//                   //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "Caller: %s (%s:%d)\n", sym.name, sym.file, sym.line);
+//                }
+//            } else {
+//               //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 2, "Caller: Unknown, sym_res: %d\n", sym_res);
+//            }
+//            */
+//        } else {
+//           //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 2, "Caller: Unknown, mode: NULL\n");
+//        }
+//    } else {
+//       //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 2, "[ARKADE FREE] Double Free detected\n");
+//    }
+//
+//    //dr_global_free(sym.name, 256);
+//    //dr_global_free(sym.file, 256);
 
-    static module_data_t *last_mod_free = NULL;
-    module_data_t *mod = NULL;
-
-    if (last_mod_free != NULL &&
-        (app_pc)return_addr >= last_mod_free->start &&
-        (app_pc)return_addr < last_mod_free->end) {
-        mod = last_mod_free;
-    } else {
-        mod = dr_lookup_module(return_addr);
-        last_mod_free = mod;
-    }
-
-    if (double_free == 0) {
-        if (mod != NULL) {
-           //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[ARKADE FREE CALLED] Module start: %p\n", mod->start);
-           //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[ARKADE FREE CALLED] Module end: %p\n", mod->end);
-           //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[ARKADE FREE CALLED] Module full path: %s\n", mod->full_path);
-
-            size_t offset = (size_t)((app_pc)return_addr - mod->start);
-
-            //dr_log(NULL, DR_LOG_MASK_BASEOFFSET, "[ARKADE] Offset: %zu\n", offset);
-
-            /* ARKADE
-            drsym_error_t sym_res = drsym_lookup_address(mod->full_path, offset, &sym, DRSYM_DEFAULT_FLAGS);
-            dr_free_module_data(mod);
-            //if (sym_res == DRSYM_SUCCESS) {
-            if (sym_res == DRSYM_SUCCESS | sym_res == DRSYM_ERROR_LINE_NOT_AVAILABLE) {
-                if (is_user) {
-                   //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "[USER] Caller: %s (%s:%d)\n", sym.name, sym.file, sym.line);
-                } else {
-                   //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 3, "Caller: %s (%s:%d)\n", sym.name, sym.file, sym.line);
-                }
-            } else {
-               //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 2, "Caller: Unknown, sym_res: %d\n", sym_res);
-            }
-            */
-        } else {
-           //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 2, "Caller: Unknown, mode: NULL\n");
-        }
-    } else {
-       //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 2, "[ARKADE FREE] Double Free detected\n");
-    }
-
-    //dr_global_free(sym.name, 256);
-    //dr_global_free(sym.file, 256);
     end_profile_section(t, &timer_wrap_free_pre, count_wrap_free_pre, FUNC_CALL_TRIGGER_THRESHOLD);
 }
 
