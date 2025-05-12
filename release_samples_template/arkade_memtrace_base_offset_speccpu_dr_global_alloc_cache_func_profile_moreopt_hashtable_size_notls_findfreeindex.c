@@ -24,6 +24,8 @@
 //#define INITIAL_REGION_CAPACITY 1048576
 #define MAX_SAFE_CAPACITY 10000000
 #define MALLOC_ROUTINE_NAME "malloc"
+#define CALLOC_ROUTINE_NAME "calloc"
+#define REALLOC_ROUTINE_NAME "realloc"
 #define FREE_ROUTINE_NAME "free"
 #define DR_LOG_MASK_BASEOFFSET 0x80000000
 #define FUNC_CALL_TRIGGER_THRESHOLD 1000
@@ -44,6 +46,8 @@ typedef struct {
     file_t log;
     FILE *logf;
     size_t size;
+    bool from_calloc;
+    bool from_realloc;
 } per_thread_t;
 
 typedef struct {
@@ -60,6 +64,7 @@ typedef struct {
 typedef struct {
     HashKey key;         // malloc address
     unsigned int value;  // region index
+    size_t size;         // region size
     UT_hash_handle hh; // uthash handle
 } HashEntry;
 
@@ -104,6 +109,8 @@ static int tls_idx;
 static void wrap_malloc_pre(void *wrapcxt, OUT void **user_data);
 static void wrap_malloc_post(void *wrapcxt, void *user_data);
 static void wrap_free_pre(void *wrapcxt, OUT void **user_data);
+static int lookup_region_index(void *ptr, bool *fast_hit);
+void hash_table_delete(void *key, size_t size);
 
 static void event_thread_init(void *drcontext);
 static void event_thread_exit(void *drcontext);
@@ -113,6 +120,11 @@ static void print_disassembled_instr(void *drcontext, instr_t *instr, int verbos
 static void print_disassembled_pc(void *drcontext, app_pc instr_addr, int verbose);
 
 static bool should_ignore_memory_access(reg_id_t base_reg);
+
+static app_pc malloc_func  = NULL;
+static app_pc calloc_func  = NULL;
+static app_pc realloc_func = NULL;
+static app_pc free_func    = NULL;
 
 // Periodically report timing from other parts of the code as needed
 // For example, call report_function_timing() inside memory instrumentation or every N iterations
@@ -184,11 +196,62 @@ static bool is_user_malloc(void *drcontext, void *wrapcxt) {
 static void wrap_malloc_pre(void *wrapcxt, OUT void **user_data) {
     struct timespec t = start_profile_section(&count_wrap_malloc_pre);
 
-    size_t size = (size_t)drwrap_get_arg(wrapcxt, 0);
+    //size_t size = (size_t)drwrap_get_arg(wrapcxt, 0);
+
+    dr_mutex_lock(mutex);
 
     void *drcontext = drwrap_get_drcontext(wrapcxt);
     per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_idx);
-    data->size = size; // Pass 'size' to wrap_malloc_post
+    //data->size = size; // Pass 'size' to wrap_malloc_post
+
+    app_pc target = drwrap_get_func(wrapcxt);
+
+    dr_fprintf(STDOUT, "[wrap_Alloc_pre] target=%p, malloc=%p, calloc=%p, realloc=%p, free=%p\n",
+               target, malloc_func, calloc_func, realloc_func, free_func);
+
+
+    if (target == malloc_func) {
+        data->size = (size_t)drwrap_get_arg(wrapcxt, 0);
+
+        if(data->from_calloc) {
+            dr_fprintf(STDOUT, "[wrap_Malloc_pre] malloc is from inside calloc\n");
+        } else if (data->from_realloc) {
+            dr_fprintf(STDOUT, "[wrap_Malloc_pre] malloc is from inside realloc\n");
+        } else {
+            dr_fprintf(STDOUT, "[wrap_Malloc_pre] malloc is from malloc itself, pid=%d, size=%zu\n", getpid(), data->size);
+        }
+    }
+    else if (target == calloc_func) {
+        data->size = (size_t)drwrap_get_arg(wrapcxt, 0) * (size_t)drwrap_get_arg(wrapcxt, 1);
+        data->from_calloc  = true;
+        data->from_realloc = false;
+        dr_fprintf(STDOUT, "[wrap_Calloc_pre] pid=%d, size=%zu\n", getpid(), data->size);
+    }
+    else if (target == realloc_func) {
+        void *old_ptr = (void *)drwrap_get_arg(wrapcxt, 0);
+        data->from_realloc = true;
+        data->from_calloc  = false;
+        data->size = (size_t)drwrap_get_arg(wrapcxt, 1);
+
+        if (old_ptr != NULL) {
+
+            bool fast_hit = false;
+            int old_index = lookup_region_index(old_ptr, &fast_hit);
+
+            if (old_index >= 0) {
+                regions[old_index].is_active = false;
+                regions[old_index].next_free = free_list_head;
+                free_list_head = old_index;
+
+                hash_table_delete(old_ptr, regions[old_index].size);
+
+                dr_fprintf(STDOUT, "[wrap_Realloc_pre] pid=%d, old_ptr=%p, old_size=%zu, new_size=%zu, index=%d\n",
+                                                      getpid(), old_ptr, regions[old_index].size, data->size, old_index);
+            }
+        } else {
+            dr_fprintf(STDOUT, "[wrap_Realloc_pre] old_ptr is NULL. realloc(NULL, size) might be used somewhere for unified code management.\n");
+        }
+    }
 
     //bool is_user = is_user_malloc(dr_get_current_drcontext(), wrapcxt);
 
@@ -250,6 +313,7 @@ static void wrap_malloc_pre(void *wrapcxt, OUT void **user_data) {
 //    //dr_global_free(sym.name, 256);
 //    //dr_global_free(sym.file, 256);
 
+    dr_mutex_unlock(mutex);
 
     end_profile_section(t, &timer_wrap_malloc_pre, count_wrap_malloc_pre, FUNC_CALL_TRIGGER_THRESHOLD);
 }
@@ -342,7 +406,7 @@ void init_hash_table() {
 }
 
 // Insert a new key-value pair into the hash table
-void hash_table_insert(void *key, int value) {
+void hash_table_insert(void *key, int value, size_t size, bool from_calloc, bool from_realloc) {
 
     HashKey hkey = { .pid = getpid(), .ptr = key };
 
@@ -350,9 +414,19 @@ void hash_table_insert(void *key, int value) {
     HashEntry *existing = NULL;
 
     HASH_FIND(hh, hash_table, &hkey, sizeof(HashKey), existing);
-    if (existing != NULL) {
-        dr_fprintf(STDOUT, "[WARN] Duplicate insert blocked for ptr (%p), pid(%d) (value = %u, existing = %d)\n",
-                   hkey.ptr, hkey.pid, value, existing->value);
+
+    if (existing != NULL && existing->size == size) {
+        dr_fprintf(STDOUT, "[WARN] Duplicate insert blocked for ptr (%p), pid(%d), size(%zu) (new index = %u, existing index = %d)\n",
+                   hkey.ptr, hkey.pid, size, value, existing->value);
+
+        if (from_calloc) {
+            dr_fprintf(STDOUT, "[WARN] Duplicate insert caused by calloc-internal malloc\n");
+        } else if (from_realloc) {
+            dr_fprintf(STDOUT, "[WARN] Duplicate insert caused by realloc-internal malloc\n");
+        } else {
+            dr_fprintf(STDOUT, "[ERR] Duplicate insert caused by user-level malloc\n");
+        }
+
         return;
     }
 
@@ -365,6 +439,7 @@ void hash_table_insert(void *key, int value) {
 
     entry->key = hkey;
     entry->value = value;
+    entry->size = size;
     HASH_ADD(hh, hash_table, key, sizeof(HashKey), entry);
 
     dr_fprintf(STDOUT, "[DEBUG] HASH_COUNT after insert: %u\n", HASH_COUNT(hash_table));
@@ -374,22 +449,26 @@ void hash_table_insert(void *key, int value) {
 
     HashEntry *e, *tmp;
     HASH_ITER(hh, hash_table, e, tmp) {
-        dr_fprintf(STDOUT, "    ptr = %p, pid = %d, value = %u\n", e->key.ptr, e->key.pid, e->value);
+        dr_fprintf(STDOUT, "    ptr = %p, pid = %d, size = %zu, value = %u\n", e->key.ptr, e->key.pid, e->size, e->value);
     }
 
     dr_fprintf(STDOUT, "[INFO] End of Hash Table Dump\n\n");
 }
 
 // Delete  from the hash table
-void hash_table_delete(void *key) {
+void hash_table_delete(void *key, size_t size) {
     HashKey hkey = { .pid = getpid(), .ptr = key };
 
     HashEntry *entry = NULL;
     HASH_FIND(hh, hash_table, &hkey, sizeof(HashKey), entry);
 
     if (entry != NULL) {
-        HASH_DEL(hash_table, entry);
-        dr_global_free(entry, sizeof(HashEntry));
+        if (entry->size == size) {
+            HASH_DEL(hash_table, entry);
+            dr_global_free(entry, sizeof(HashEntry));
+        } else {
+            dr_fprintf(STDERR, "Same return address with different size is detected in the hashtable.\n");
+        }
     }
 
     dr_fprintf(STDOUT, "[DEBUG] HASH_COUNT after delete: %u\n", HASH_COUNT(hash_table));
@@ -432,7 +511,7 @@ static int lookup_region_index(void *ptr, bool *fast_hit) {
     for (int i = 0; i < region_capacity; i++) {
         if (regions[i].is_active &&
             regions[i].base_address == ptr &&
-            regions[i].pid == getpid() ) {
+            regions[i].pid == getpid()) {
             return i;
         }
     }
@@ -444,15 +523,23 @@ static int lookup_region_index(void *ptr, bool *fast_hit) {
 static void wrap_malloc_post(void *wrapcxt, void *user_data) {
     struct timespec t = start_profile_section(&count_wrap_malloc_post);
 
+    dr_mutex_lock(mutex);
+
     void *ptr = (void *)drwrap_get_retval(wrapcxt);
 
     void *drcontext = drwrap_get_drcontext(wrapcxt);
     per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_idx);
     size_t size = data->size; // Obtain the size saved in wrap_malloc_pre
+    bool from_calloc = data->from_calloc;
+    bool from_realloc = data->from_realloc;
+
+    app_pc target = drwrap_get_func(wrapcxt);
+
+    dr_fprintf(STDOUT, "[wrap_alloc_post] target=%p, malloc=%p, calloc=%p, realloc=%p, free=%p, return_addr=%p, size=%zu\n",
+               target, malloc_func, calloc_func, realloc_func, free_func, ptr, size);
 
     //bool is_user = is_user_malloc(dr_get_current_drcontext(), wrapcxt);
 
-    dr_mutex_lock(mutex);
 
     int index = find_free_index();
 
@@ -485,7 +572,7 @@ static void wrap_malloc_post(void *wrapcxt, void *user_data) {
     //}
 
     // Insert into hash table
-    hash_table_insert(ptr, index);
+    hash_table_insert(ptr, index, size, from_calloc, from_realloc);
 
     dr_mutex_unlock(mutex);
 
@@ -495,12 +582,18 @@ static void wrap_malloc_post(void *wrapcxt, void *user_data) {
 static void wrap_free_pre(void *wrapcxt, OUT void **user_data) {
     struct timespec t = start_profile_section(&count_wrap_free_pre);
 
+    dr_mutex_lock(mutex);
+
     void *ptr = (void *)drwrap_get_arg(wrapcxt, 0);
     //bool is_user = is_user_malloc(dr_get_current_drcontext(), wrapcxt);
     bool double_free = 1;
     bool fast_hit = false;
 
-    dr_mutex_lock(mutex);
+    app_pc target = drwrap_get_func(wrapcxt);
+
+    dr_fprintf(STDOUT, "[wrap_free_pre] target=%p, malloc=%p, calloc=%p, realloc=%p, free=%p, return_addr=%p\n",
+               target, malloc_func, calloc_func, realloc_func, free_func, ptr);
+
     int index = lookup_region_index(ptr, &fast_hit);
 
 
@@ -516,7 +609,7 @@ static void wrap_free_pre(void *wrapcxt, OUT void **user_data) {
         free_list_head = index;
 
         if(fast_hit) {
-            hash_table_delete(ptr);
+            hash_table_delete(ptr, regions[index].size);
 
             //int hash_idx = hash_table_lookup(ptr);
             //if (hash_idx == index && regions[index].base_address == ptr) {
@@ -528,7 +621,7 @@ static void wrap_free_pre(void *wrapcxt, OUT void **user_data) {
 
         if (last_hit_index == index) last_hit_index = -1;
     }
-    dr_fprintf(STDOUT, "[wrap_free_pre] pid=%d, ptr=%p, index=%d\n", getpid(), ptr, index);
+    dr_fprintf(STDOUT, "[wrap_free_pre] pid=%d, ptr=%p, size=%zu, index=%d\n", getpid(), ptr, regions[index].size, index);
 
 //    void *return_addr = drwrap_get_retaddr(wrapcxt);
 //    //drsym_info_t sym;
@@ -970,24 +1063,61 @@ static void report_test_result(void) {
 }
 
 static void module_load_event(void *drcontext, const module_data_t *mod, bool loaded) {
-    app_pc malloc_towrap = (app_pc)dr_get_proc_address(mod->handle, MALLOC_ROUTINE_NAME);
+
+    app_pc malloc_towrap  = (app_pc)dr_get_proc_address(mod->handle, MALLOC_ROUTINE_NAME);
+    app_pc calloc_towrap  = (app_pc)dr_get_proc_address(mod->handle, CALLOC_ROUTINE_NAME);
+    app_pc realloc_towrap = (app_pc)dr_get_proc_address(mod->handle, REALLOC_ROUTINE_NAME);
     app_pc free_towrap = (app_pc)dr_get_proc_address(mod->handle, FREE_ROUTINE_NAME);
+
+    //dr_fprintf(STDOUT, "[module_load_event 1] malloc_towrap=%p, calloc_towrap=%p, realloc_towrap=%p\n",
+    //                    malloc_towrap, calloc_towrap, realloc_towrap);
 
     if (malloc_towrap != NULL) {
         if (drwrap_wrap(malloc_towrap, wrap_malloc_pre, wrap_malloc_post)) {
            //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 5, "\n[ARKADE WRAP MALLOC] Wrapped malloc successfully @ %p\n", malloc_towrap);
+            malloc_func = malloc_towrap;
+            //dr_fprintf(STDOUT, "[mod_load] module loaded: %s\n", mod->full_path);
+            //dr_fprintf(STDOUT, "malloc_towrap is loaded (%p)\n", malloc_towrap);
         } else {
            //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 5, "\n[ARKADE WRAP MALLOC] Failed to wrap malloc @ %p: already wrapped?\n", malloc_towrap);
+        }
+    }
+
+    if (calloc_towrap != NULL) {
+        if (drwrap_wrap(calloc_towrap, wrap_malloc_pre, wrap_malloc_post)) {
+           //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 5, "\n[ARKADE WRAP MALLOC] Wrapped calloc successfully @ %p\n", calloc_towrap);
+            calloc_func = calloc_towrap;
+            //dr_fprintf(STDOUT, "[mod_load] module loaded: %s\n", mod->full_path);
+            //dr_fprintf(STDOUT, "calloc_towrap is loaded (%p)\n", calloc_towrap);
+        } else {
+           //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 5, "\n[ARKADE WRAP MALLOC] Failed to wrap calloc @ %p: already wrapped?\n", calloc_towrap);
+        }
+    }
+
+    if (realloc_towrap != NULL) {
+        if (drwrap_wrap(realloc_towrap, wrap_malloc_pre, wrap_malloc_post)) {
+           //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 5, "\n[ARKADE WRAP MALLOC] Wrapped realloc successfully @ %p\n", realloc_towrap);
+            realloc_func = realloc_towrap;
+            //dr_fprintf(STDOUT, "[mod_load] module loaded: %s\n", mod->full_path);
+            //dr_fprintf(STDOUT, "realloc_towrap is loaded (%p)\n", realloc_towrap);
+        } else {
+           //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 5, "\n[ARKADE WRAP MALLOC] Failed to wrap realloc @ %p: already wrapped?\n", realloc_towrap);
         }
     }
 
     if (free_towrap != NULL) {
         if (drwrap_wrap(free_towrap, wrap_free_pre, NULL)) {
            //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 5, "[ARKADE WRAP FREE] Wrapped free successfully @ %p\n", free_towrap);
+            free_func = free_towrap;
+            //dr_fprintf(STDOUT, "[mod_load] module loaded: %s\n", mod->full_path);
+            //dr_fprintf(STDOUT, "free_towrap is loaded (%p)\n", free_towrap);
         } else {
            //ARKADE dr_log(NULL, DR_LOG_MASK_BASEOFFSET, 5, "[ARKADE WRAP FREE] Failed to wrap free @ %p: already wrapped?\n", free_towrap);
         }
     }
+
+    //dr_fprintf(STDOUT, "[module_load_event 2] malloc_towrap=%p, calloc_towrap=%p, realloc_towrap=%p\n",
+    //                    malloc_towrap, calloc_towrap, realloc_towrap);
 }
 
 static void event_thread_init(void *drcontext) {
